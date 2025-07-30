@@ -1,7 +1,7 @@
 import random
 import faker
 from datetime import datetime, timedelta
-from ..utils.identity_generator import IdentityGenerator
+from utils.identity_generator import IdentityGenerator
 
 class ProfileManager:
     def __init__(self):
