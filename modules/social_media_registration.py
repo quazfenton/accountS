@@ -7,6 +7,7 @@ import re
 import math
 from datetime import datetime
 from playwright.sync_api import sync_playwright, BrowserContext
+from modules.browserless import Browserless
 from config.config import Config
 from .detection_prevention import DetectionPrevention
 from utils.notifier import Notifier
@@ -22,6 +23,8 @@ class SocialMediaRegistration:
         self.page = None
         self.fake = Faker()
         self.behavior_profile = self._generate_behavior_profile()
+        self.notifier = Notifier() # Initialize Notifier
+        self.browserless_client = Browserless() # Initialize Browserless client
         
     def _generate_behavior_profile(self):
         """Generate unique behavior fingerprint for each session"""
@@ -483,9 +486,11 @@ class SocialMediaRegistration:
             if profile:
                 first_name = profile['personal'].get('first_name', profile['basic']['first_name'])
                 last_name = profile['personal'].get('last_name', '')
+                profile_picture_path = profile['media'].get('profile_picture_path')
             else:
                 first_name = identity['first_name']
                 last_name = identity.get('last_name', '')
+                profile_picture_path = None # No profile picture if no full profile
             
             # Fill email and name
             self._human_mouse_move('input[name="emailOrPhone"]')
@@ -535,9 +540,31 @@ class SocialMediaRegistration:
                 if verification_result['status'] != 'success':
                     return verification_result
             
-            # Skip profile picture for now (can be added later)
-            if self.page.is_visible('text=Add a Profile Picture'):
-                self.page.click('text=Skip')
+            # Upload profile picture if available
+            if profile_picture_path and self.page.is_visible('text="Add a Profile Picture"'):
+                print(f"Uploading profile picture from: {profile_picture_path}")
+                try:
+                    # Instagram uses a file input for profile pictures
+                    file_input = self.page.locator('input[type="file"]')
+                    if file_input:
+                        file_input.set_input_files(profile_picture_path)
+                        time.sleep(random.uniform(3, 5)) # Wait for upload
+                        # Click 'Done' or 'Next' if available after upload
+                        if self.page.is_visible('button:has-text("Done")'):
+                            self.page.click('button:has-text("Done")')
+                        elif self.page.is_visible('button:has-text("Next")'):
+                            self.page.click('button:has-text("Next")')
+                        print("Profile picture uploaded.")
+                    else:
+                        print("File input for profile picture not found, skipping upload.")
+                        self.page.click('text=Skip') # Skip if input not found
+                except Exception as upload_e:
+                    print(f"Error uploading profile picture: {upload_e}")
+                    self.notifier.log_failure("Instagram Profile Picture", str(upload_e))
+                    if self.page.is_visible('text=Skip'): # Fallback to skip if upload fails
+                        self.page.click('text=Skip')
+            elif self.page.is_visible('text=Add a Profile Picture'):
+                self.page.click('text=Skip') # Skip if no path or not visible
                 time.sleep(1)
             
             # Skip notifications

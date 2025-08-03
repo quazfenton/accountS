@@ -2,13 +2,16 @@ import random
 import faker
 from datetime import datetime, timedelta
 from utils.identity_generator import IdentityGenerator
+from utils.face_generator import FaceGenerator # Import FaceGenerator
+import os # Import os for path manipulation
 
 class ProfileManager:
     def __init__(self):
         self.fake = faker.Faker()
         self.identity_gen = IdentityGenerator()
+        self.face_gen = FaceGenerator() # Initialize FaceGenerator
         self.countries = ['US', 'UK', 'CA', 'AU', 'DE', 'FR']
-        self.timezones = ['America/New_York', 'Europe/London', 'Australia/Sydney', 
+        self.timezones = ['America/New_York', 'Europe/London', 'Australia/Sydney',
                           'Europe/Paris', 'Asia/Tokyo', 'America/Los_Angeles']
     
     def generate_birthdate(self, min_age=18, max_age=65, base_date=None, year_offset=0):
@@ -121,6 +124,9 @@ class ProfileManager:
                 'security_question1': self.generate_security_question_variation(f"What was your first pet's name? {self.fake.first_name()}"),
                 'security_question2': self.generate_security_question_variation(f"What street did you grow up on? {self.fake.street_name()}"),
                 'recovery_email': f"recovery_{identity['email']}"
+            },
+            'media': {
+                'profile_picture_path': self.save_generated_face(identity['username']) # Generate and save face
             }
         }
     
@@ -202,3 +208,11 @@ class ProfileManager:
             variations.append(variation)
         
         return variations
+
+    def save_generated_face(self, username):
+        """Generate and save a face image for the profile."""
+        output_dir = "generated_faces"
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, f"{username}_face.png")
+        self.face_gen.save_face(output_path, seed=hash(username)) # Use username hash as seed for reproducibility
+        return output_path

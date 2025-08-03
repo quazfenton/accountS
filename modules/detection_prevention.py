@@ -151,6 +151,35 @@ class DetectionPrevention:
                 return pc;
             };
         """)
+
+        # Spoof hardware concurrency
+        self.context.add_init_script("""
+            Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => Math.floor(Math.random() * 4) + 2 }); // 2-5 cores
+        """)
+
+        # Spoof battery status API
+        self.context.add_init_script("""
+            Object.defineProperty(navigator, 'getBattery', {
+                value: () => Promise.resolve({
+                    charging: Math.random() > 0.5,
+                    chargingTime: Infinity,
+                    dischargingTime: Math.random() * 10000,
+                    level: Math.random() * 0.2 + 0.8 // 80-100%
+                })
+            });
+        """)
+
+        # Spoof font fingerprinting (basic example, more complex methods exist)
+        self.context.add_init_script("""
+            const originalQuery = document.fonts.query;
+            document.fonts.query = function(font) {
+                // Always return true for common fonts to avoid detection
+                if (font.includes('Arial') || font.includes('Times New Roman')) {
+                    return true;
+                }
+                return originalQuery.call(this, font);
+            };
+        """)
     
     def rotate_fingerprint(self):
         """Rotate browser fingerprint with new properties"""

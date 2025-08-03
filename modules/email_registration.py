@@ -4,7 +4,8 @@ import time
 import re
 import tempfile
 import requests
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, BrowserContext
+from modules.browserless import Browserless
 from config.config import Config
 from utils.identity_generator import IdentityGenerator
 from utils.notifier import Notifier
@@ -22,6 +23,7 @@ class EmailRegistration:
         self.debug = debug
         self.fake = Faker()
         self.behavior_profile = self._generate_behavior_profile()
+        self.browserless_client = Browserless() # Initialize Browserless client
     
     def _generate_behavior_profile(self):
         """Generate unique behavior fingerprint for each session"""

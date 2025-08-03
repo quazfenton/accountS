@@ -70,8 +70,8 @@ def create_account(account_num, total_accounts, platforms):
         )
         social_data = social_reg.register_multiple_platforms(
             platforms,
-            identity=profile['basic'],
-            profile=profile
+            identity=profile['basic'], # Pass basic identity
+            profile=profile # Pass full profile
         )
         
         # Step 3: Save to database

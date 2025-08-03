@@ -3,7 +3,14 @@ import numpy as np
 from PIL import Image
 import torch
 from torchvision import transforms
-from .model import Generator  # We'll create this model file
+from utils.model import Generator # Import the Generator from utils.model
+
+# Placeholder for model download/loading instructions
+# In a real scenario, you would download a pre-trained model (e.g., PULSE)
+# and place it in the 'models/' directory.
+# Example:
+# 1. Download pulse.pt from a trusted source.
+# 2. Place it in the 'models/' directory: /home/kwasifenton/accountS/models/pulse.pt
 
 class FaceGenerator:
     def __init__(self, model_path='models/pulse.pt'):
