@@ -11,83 +11,125 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from modules.email_registration import EmailRegistration
 from modules.social_media_registration import SocialMediaRegistration
+from modules.account_orchestrator import AccountOrchestrator
+from modules.improved_account_manager import ImprovedAccountManager
+from modules.improved_database import ImprovedDatabase
 from modules.database import Database
 from modules.profile_manager import ProfileManager
 from utils.notifier import Notifier
-from utils.identity_generator import IdentityGenerator # Import IdentityGenerator
+from utils.identity_generator import IdentityGenerator
+from utils.proxy_manager import ImprovedProxyManager
+from utils.monitoring import MetricsCollector, PerformanceMonitor, AlertManager
+from config.advanced_config import AdvancedConfig
 
 # Thread-local storage for account creation components
 thread_local = threading.local()
 
 def get_components():
-    """Initialize components per thread"""
-    if not hasattr(thread_local, "email_reg"):
+    """Initialize components per thread with improved features"""
+    if not hasattr(thread_local, "account_manager"):
+        # Load advanced configuration
+        try:
+            config = AdvancedConfig()
+            proxy_list = [proxy.url for proxy in config.proxies] if config.should_use_proxy() else None
+        except Exception as e:
+            print(f"Warning: Could not load advanced config, using basic setup: {e}")
+            proxy_list = None
+        
+        # Initialize improved account manager (main component)
+        thread_local.account_manager = ImprovedAccountManager(
+            proxy_list=proxy_list,
+            max_workers=5,
+            db_path="accounts.db"
+        )
+        
+        # Legacy components for backward compatibility
         from config.config import Config
-        config = Config()
+        legacy_config = Config()
         thread_local.email_reg = EmailRegistration(
-            headless=config.HEADLESS_MODE,
-            debug=config.DEBUG_MODE
+            headless=legacy_config.HEADLESS_MODE,
+            debug=legacy_config.DEBUG_MODE
         )
         thread_local.db = Database()
         thread_local.profile_manager = ProfileManager()
         thread_local.notifier = Notifier()
+        
     return (
-        thread_local.email_reg,
+        thread_local.account_manager,
         thread_local.db,
-        thread_local.profile_manager,
-        thread_local.notifier
+        thread_local.notifier,
+        thread_local.email_reg,
+        thread_local.profile_manager
     )
 
-def create_account(account_num, total_accounts, platforms):
-    """Create a single account with thread-safe components"""
-    email_reg, db, profile_manager, notifier = get_components()
+async def create_account_advanced(account_num, total_accounts, platforms):
+    """Create account using improved account manager"""
+    account_manager, db, notifier, email_reg, profile_manager = get_components()
     
     try:
-        print(f"\n=== Creating account {account_num}/{total_accounts} ===")
-        print(f"[{account_num}] Generating identity...")
+        print(f"\n=== Creating advanced account ecosystem {account_num}/{total_accounts} ===")
+        print(f"[{account_num}] Platforms: {platforms}")
         
-        # Generate detailed identity profile
+        # Generate identity using profile manager
         profile = profile_manager.generate_full_profile()
         identity = profile['basic']
         
-        # Step 1: Register email with identity
-        print(f"[{account_num}] Registering email...")
-        email_data = email_reg.register_email()
-        if not email_data:
-            print(f"❌ [{account_num}] Email registration failed. Skipping...")
+        # Create account using improved manager
+        result = await account_manager.create_single_account(identity, platforms)
+        
+        # Print results
+        if result['success']:
+            print(f"✅ [{account_num}] Account ecosystem created successfully")
+            print(f"📧 [{account_num}] Primary email: {result.get('primary_email', 'N/A')}")
+            print(f"📊 [{account_num}] Success rate: {result.get('success_rate', 0):.2%}")
+            print(f"⏱️ [{account_num}] Duration: {result.get('duration', 0):.1f}s")
+            
+            # Save to legacy database as well for compatibility
+            if 'ecosystem' in result:
+                ecosystem_data = result['ecosystem']
+                primary_account = ecosystem_data.get('primary_account', {})
+                if primary_account:
+                    legacy_email_data = {
+                        'email': primary_account.get('email', ''),
+                        'password': primary_account.get('password', ''),
+                        'proxy': ''
+                    }
+                    legacy_social_data = ecosystem_data.get('linked_accounts', [])
+                    db.save_account(legacy_email_data, legacy_social_data, profile)
+            
+            return True
+        else:
+            print(f"❌ [{account_num}] Account creation failed: {result.get('error', 'Unknown error')}")
+            
+            # Check if human intervention is needed
+            if result.get('requires_human_intervention'):
+                notifier.human_intervention_required(
+                    f"Account {account_num}",
+                    f"Human intervention required: {result.get('error', 'Unknown issue')}"
+                )
+            
             return False
-        else:
-            if email_data.get('status') == 'needs_verification':
-                print(f"⚠️ [{account_num}] Email requires verification: {email_data['email']}")
-            else:
-                print(f"✅ [{account_num}] Email registered: {email_data['email']}")
         
-        # Step 2: Register social media accounts with full profile
-        social_reg = SocialMediaRegistration(
-            email=email_data['email'],
-            password=email_data['password'],
-            proxy=email_data['proxy']
-        )
-        social_data = social_reg.register_multiple_platforms(
-            platforms,
-            identity=profile['basic'], # Pass basic identity
-            profile=profile # Pass full profile
-        )
-        
-        # Step 3: Save to database
-        if db.save_account(email_data, social_data):
-            print(f"💾 [{account_num}] Account saved to database")
-        else:
-            print(f"❌ [{account_num}] Failed to save account to database")
-        
-        return True
-    
     except Exception as e:
-        print(f"⚠️ [{account_num}] Account creation error: {str(e)}")
+        print(f"⚠️ [{account_num}] Advanced account creation error: {str(e)}")
         notifier.human_intervention_required(
             f"Account {account_num}",
-            f"Error: {str(e)}"
+            f"Critical error: {str(e)}"
         )
+        return False
+
+def create_account(account_num, total_accounts, platforms):
+    """Legacy account creation method (synchronous wrapper)"""
+    try:
+        # Run async function in event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(create_account_advanced(account_num, total_accounts, platforms))
+        finally:
+            loop.close()
+    except Exception as e:
+        print(f"⚠️ [{account_num}] Error in account creation wrapper: {str(e)}")
         return False
 
 def main():

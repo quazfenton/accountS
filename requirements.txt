@@ -5,3 +5,7 @@ faker
 supabase
 numpy
 python-dateutil
+torch
+torchvision
+pillow
+win10toast

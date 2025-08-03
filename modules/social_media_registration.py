@@ -5,6 +5,7 @@ import tempfile
 import requests
 import re
 import math
+import os
 from datetime import datetime
 from playwright.sync_api import sync_playwright, BrowserContext
 from modules.browserless import Browserless
@@ -84,44 +85,47 @@ class SocialMediaRegistration:
     
     def init_browser(self):
         """Initialize Playwright browser with advanced fingerprint spoofing"""
-        with sync_playwright() as p:
-            proxy_settings = {
-                'server': f'http://{self.proxy}'
-            } if self.proxy else None
-            
-            self.browser = p.chromium.launch(
-                headless=False,
-                proxy=proxy_settings,
-                args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-infobars',
-                    f'--window-size={self.behavior_profile["browser_viewport"]["width"]},{self.behavior_profile["browser_viewport"]["height"]}'
-                ]
-            )
-            
-            # Create new context with advanced fingerprint spoofing
-            context = self.browser.new_context(
-                viewport=self.behavior_profile["browser_viewport"],
-                user_agent=self.fake.user_agent(),
-                locale='en-US',
-                timezone_id='America/New_York',
-                geolocation={'longitude': -74.006, 'latitude': 40.7128},
-                permissions=['geolocation']
-            )
-            
-            # Apply advanced detection prevention
-            dp = DetectionPrevention(context)
-            dp.apply_stealth()
-            
-            # Override navigator properties
-            context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
-                Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-                window.chrome = {runtime: {}};
-            """)
-            
-            self.page = context.new_page()
+        self.playwright = sync_playwright().start()
+        
+        proxy_settings = {
+            'server': f'http://{self.proxy}'
+        } if self.proxy else None
+        
+        self.browser = self.playwright.chromium.launch(
+            headless=False,
+            proxy=proxy_settings,
+            args=[
+                '--disable-blink-features=AutomationControlled',
+                '--disable-infobars',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                f'--window-size={self.behavior_profile["browser_viewport"]["width"]},{self.behavior_profile["browser_viewport"]["height"]}'
+            ]
+        )
+        
+        # Create new context with advanced fingerprint spoofing
+        context = self.browser.new_context(
+            viewport=self.behavior_profile["browser_viewport"],
+            user_agent=self.fake.user_agent(),
+            locale='en-US',
+            timezone_id='America/New_York',
+            geolocation={'longitude': -74.006, 'latitude': 40.7128},
+            permissions=['geolocation']
+        )
+        
+        # Apply advanced detection prevention
+        dp = DetectionPrevention(context)
+        dp.apply_stealth()
+        
+        # Override navigator properties
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
+            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+            window.chrome = {runtime: {}};
+        """)
+        
+        self.page = context.new_page()
     
     def _ai_behavior_randomization(self):
         """Randomize behavior patterns using ML-generated sequences"""
@@ -143,8 +147,10 @@ class SocialMediaRegistration:
     
     def close_browser(self):
         """Close browser instance"""
-        if self.browser:
+        if hasattr(self, 'browser') and self.browser:
             self.browser.close()
+        if hasattr(self, 'playwright') and self.playwright:
+            self.playwright.stop()
     
     def register_twitter(self, identity=None, profile=None):
         """Register Twitter account with advanced human-like interactions"""
@@ -329,7 +335,7 @@ class SocialMediaRegistration:
                 # Image-based captcha
                 return self.solve_image_captcha()
             elif self.page.is_visible('div#hcaptcha'):
-                # hCaptcha
+                # hCaptcha - similar to reCAPTCHA
                 return self.solve_hcaptcha()
             else:
                 print("Unknown captcha type detected")
@@ -408,10 +414,49 @@ class SocialMediaRegistration:
         
         return {'status': 'captcha_failed'}
     
+    def solve_hcaptcha(self):
+        """Solve hCaptcha using external service"""
+        try:
+            # Extract sitekey from hCaptcha div
+            hcaptcha_div = self.page.query_selector('div[data-sitekey]')
+            if not hcaptcha_div:
+                return {'status': 'captcha_failed', 'reason': 'no_sitekey'}
+                
+            sitekey = hcaptcha_div.get_attribute('data-sitekey')
+            page_url = self.page.url
+            
+            # Solve using external service
+            response = requests.post(
+                f"{self.config.CAPTCHA_SERVICE_URL}/hcaptcha",
+                json={
+                    "api_key": self.config.CAPTCHA_API_KEY,
+                    "sitekey": sitekey,
+                    "url": page_url
+                },
+                timeout=120
+            )
+            
+            if response.status_code == 200:
+                solution = response.json().get('solution')
+                if solution:
+                    # Inject solution into page
+                    self.page.evaluate(f'document.querySelector("[name=h-captcha-response]").value = "{solution}";')
+                    time.sleep(1)
+                    self.page.click('button:has-text("Verify")')
+                    time.sleep(2)
+                    return {'status': 'captcha_solved'}
+        except Exception as e:
+            print(f"hCaptcha solving failed: {str(e)}")
+        
+        return {'status': 'captcha_failed'}
+    
     def handle_sms_verification(self, platform='twitter'):
         """Handle SMS verification using SIP service with improved reliability"""
         try:
             # Use SMS service to get phone number
+            if not self.config.SMS_SERVICE_URL:
+                return {'status': 'sms_failed', 'reason': 'sms_service_not_configured'}
+                
             response = requests.post(
                 self.config.SMS_SERVICE_URL,
                 json={
@@ -541,7 +586,7 @@ class SocialMediaRegistration:
                     return verification_result
             
             # Upload profile picture if available
-            if profile_picture_path and self.page.is_visible('text="Add a Profile Picture"'):
+            if profile_picture_path and os.path.exists(profile_picture_path) and self.page.is_visible('text="Add a Profile Picture"'):
                 print(f"Uploading profile picture from: {profile_picture_path}")
                 try:
                     # Instagram uses a file input for profile pictures
@@ -557,7 +602,8 @@ class SocialMediaRegistration:
                         print("Profile picture uploaded.")
                     else:
                         print("File input for profile picture not found, skipping upload.")
-                        self.page.click('text=Skip') # Skip if input not found
+                        if self.page.is_visible('text=Skip'):
+                            self.page.click('text=Skip') # Skip if input not found
                 except Exception as upload_e:
                     print(f"Error uploading profile picture: {upload_e}")
                     self.notifier.log_failure("Instagram Profile Picture", str(upload_e))

@@ -211,8 +211,13 @@ class ProfileManager:
 
     def save_generated_face(self, username):
         """Generate and save a face image for the profile."""
-        output_dir = "generated_faces"
-        os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, f"{username}_face.png")
-        self.face_gen.save_face(output_path, seed=hash(username)) # Use username hash as seed for reproducibility
-        return output_path
+        try:
+            output_dir = "generated_faces"
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, f"{username}_face.png")
+            self.face_gen.save_face(output_path, seed=hash(username)) # Use username hash as seed for reproducibility
+            return output_path
+        except Exception as e:
+            print(f"Warning: Could not generate face for {username}: {e}")
+            # Return None if face generation fails
+            return None

@@ -68,44 +68,47 @@ class EmailRegistration:
     
     def init_browser(self):
         """Initialize Playwright browser with advanced fingerprint spoofing"""
-        with sync_playwright() as p:
-            proxy_settings = {
-                'server': f'http://{self.current_proxy}'
-            } if self.current_proxy else None
-            
-            self.browser = p.chromium.launch(
-                headless=self.headless,
-                proxy=proxy_settings,
-                args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-infobars',
-                    f'--window-size={self.behavior_profile["browser_viewport"]["width"]},{self.behavior_profile["browser_viewport"]["height"]}'
-                ]
-            )
-            
-            # Create new context with advanced fingerprint spoofing
-            context = self.browser.new_context(
-                viewport=self.behavior_profile["browser_viewport"],
-                user_agent=self.fake.user_agent(),
-                locale='en-US',
-                timezone_id='America/New_York',
-                geolocation={'longitude': -74.006, 'latitude': 40.7128},
-                permissions=['geolocation']
-            )
-            
-            # Apply advanced detection prevention
-            dp = DetectionPrevention(context)
-            dp.apply_stealth()
-            
-            # Override navigator properties
-            context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
-                Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-                window.chrome = {runtime: {}};
-            """)
-            
-            self.page = context.new_page()
+        self.playwright = sync_playwright().start()
+        
+        proxy_settings = {
+            'server': f'http://{self.current_proxy}'
+        } if self.current_proxy else None
+        
+        self.browser = self.playwright.chromium.launch(
+            headless=self.headless,
+            proxy=proxy_settings,
+            args=[
+                '--disable-blink-features=AutomationControlled',
+                '--disable-infobars',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                f'--window-size={self.behavior_profile["browser_viewport"]["width"]},{self.behavior_profile["browser_viewport"]["height"]}'
+            ]
+        )
+        
+        # Create new context with advanced fingerprint spoofing
+        context = self.browser.new_context(
+            viewport=self.behavior_profile["browser_viewport"],
+            user_agent=self.fake.user_agent(),
+            locale='en-US',
+            timezone_id='America/New_York',
+            geolocation={'longitude': -74.006, 'latitude': 40.7128},
+            permissions=['geolocation']
+        )
+        
+        # Apply advanced detection prevention
+        dp = DetectionPrevention(context)
+        dp.apply_stealth()
+        
+        # Override navigator properties
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
+            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+            window.chrome = {runtime: {}};
+        """)
+        
+        self.page = context.new_page()
     
     def register_email(self, retries=3):
         """Register email using web crawling with headless browser"""
@@ -135,9 +138,64 @@ class EmailRegistration:
                 
                 # Fill registration form
                 print("[Form] Filling registration form")
-                self._human_type(self.page, 'input[name="username"]', username)
-                self._human_type(self.page, 'input[name="password"]', password)
-                self._human_type(self.page, 'input[name="password_confirm"]', password)
+                
+                # Try different common selectors for username/email
+                username_selectors = [
+                    'input[name="username"]',
+                    'input[name="email"]', 
+                    'input[type="email"]',
+                    'input[id="username"]',
+                    'input[id="email"]'
+                ]
+                
+                username_filled = False
+                for selector in username_selectors:
+                    try:
+                        if self.page.is_visible(selector):
+                            self._human_type(self.page, selector, email)
+                            username_filled = True
+                            break
+                    except:
+                        continue
+                
+                if not username_filled:
+                    print("[Warning] Could not find username/email field")
+                
+                # Try different common selectors for password
+                password_selectors = [
+                    'input[name="password"]',
+                    'input[type="password"]',
+                    'input[id="password"]'
+                ]
+                
+                password_filled = False
+                for selector in password_selectors:
+                    try:
+                        if self.page.is_visible(selector):
+                            self._human_type(self.page, selector, password)
+                            password_filled = True
+                            break
+                    except:
+                        continue
+                
+                if not password_filled:
+                    print("[Warning] Could not find password field")
+                
+                # Try to fill password confirmation if it exists
+                confirm_selectors = [
+                    'input[name="password_confirm"]',
+                    'input[name="confirmPassword"]',
+                    'input[name="password2"]',
+                    'input[id="password_confirm"]'
+                ]
+                
+                for selector in confirm_selectors:
+                    try:
+                        if self.page.is_visible(selector):
+                            self._human_type(self.page, selector, password)
+                            break
+                    except:
+                        continue
                 
                 # Solve captchas
                 if self.page.is_visible('iframe[title*="recaptcha"]') or self.page.is_visible('img.captcha-image'):
@@ -147,8 +205,32 @@ class EmailRegistration:
                         continue
                 
                 # Submit form
-                self.page.click('button[type="submit"]')
-                print("[Form] Submitted")
+                submit_selectors = [
+                    'button[type="submit"]',
+                    'input[type="submit"]',
+                    'button:has-text("Sign up")',
+                    'button:has-text("Register")',
+                    'button:has-text("Create")',
+                    'button:has-text("Submit")',
+                    '#submit',
+                    '.submit-btn'
+                ]
+                
+                submitted = False
+                for selector in submit_selectors:
+                    try:
+                        if self.page.is_visible(selector):
+                            self.page.click(selector)
+                            submitted = True
+                            break
+                    except:
+                        continue
+                
+                if submitted:
+                    print("[Form] Submitted")
+                else:
+                    print("[Warning] Could not find submit button")
+                    
                 time.sleep(3)
                 
                 # Handle email verification
@@ -180,8 +262,10 @@ class EmailRegistration:
                     self.page.pause()
                     
             finally:
-                if not self.debug:
+                if hasattr(self, 'browser') and self.browser:
                     self.browser.close()
+                if hasattr(self, 'playwright') and self.playwright:
+                    self.playwright.stop()
         
         print("[Failure] All registration attempts failed")
         self.notifier.human_intervention_required("Email Registration",

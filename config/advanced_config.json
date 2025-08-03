@@ -1,0 +1,53 @@
+{
+  "proxies": [],
+  "captcha_services": [
+    {
+      "name": "2captcha",
+      "api_key": "",
+      "endpoint": "http://2captcha.com/in.php",
+      "timeout": 120,
+      "max_retries": 3
+    }
+  ],
+  "browser_settings": {
+    "headless": true,
+    "viewport_width": 1366,
+    "viewport_height": 768,
+    "user_agent_rotation": true,
+    "fingerprint_spoofing": true
+  },
+  "rate_limiting": {
+    "requests_per_minute": 10,
+    "accounts_per_hour": 5,
+    "cooldown_between_accounts": 300
+  },
+  "verification_settings": {
+    "max_captcha_attempts": 3,
+    "sms_timeout": 300,
+    "email_verification_timeout": 600,
+    "human_intervention_threshold": 3
+  },
+  "identity_generation": {
+    "name_sources": [
+      "common_names.json",
+      "generated_names.json"
+    ],
+    "username_patterns": [
+      "firstname_lastname",
+      "firstname_numbers",
+      "random_words"
+    ],
+    "password_complexity": "high",
+    "email_domains": [
+      "gmail.com",
+      "yahoo.com",
+      "outlook.com"
+    ]
+  },
+  "monitoring": {
+    "success_rate_threshold": 0.7,
+    "failure_alert_count": 5,
+    "log_level": "INFO",
+    "metrics_collection": true
+  }
+}

@@ -1,26 +1,47 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class Generator(nn.Module):
     """
-    Placeholder for a GAN Generator model.
-    In a full implementation, this would be a sophisticated model
-    like StyleGAN or a PULSE-like architecture for face generation.
+    Improved GAN Generator model for face generation.
+    Uses a more sophisticated architecture with convolutional layers.
     """
     def __init__(self, image_size, latent_dim, num_layers):
         super().__init__()
         self.image_size = image_size
         self.latent_dim = latent_dim
         self.num_layers = num_layers
-
-        # Simple placeholder layers for demonstration
-        self.main = nn.Sequential(
-            nn.Linear(latent_dim, 256),
-            nn.ReLU(True),
-            nn.Linear(256, 512),
-            nn.ReLU(True),
-            nn.Linear(512, image_size * image_size * 3), # Output R, G, B channels
-            nn.Tanh() # Output values between -1 and 1
+        
+        # Calculate initial feature map size
+        self.init_size = image_size // (2 ** 4)  # 4 upsampling layers
+        
+        # Linear layer to expand latent vector
+        self.l1 = nn.Sequential(
+            nn.Linear(latent_dim, 128 * self.init_size ** 2)
+        )
+        
+        # Convolutional layers for upsampling
+        self.conv_blocks = nn.Sequential(
+            nn.BatchNorm2d(128),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.BatchNorm2d(128, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, 3, stride=1, padding=1),
+            nn.BatchNorm2d(64, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, 3, stride=1, padding=1),
+            nn.BatchNorm2d(32, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 3, 3, stride=1, padding=1),
+            nn.Tanh()
         )
 
     def forward(self, z):
@@ -31,9 +52,9 @@ class Generator(nn.Module):
         Returns:
             torch.Tensor: Generated image.
         """
-        img = self.main(z)
-        # Reshape to (batch_size, channels, height, width)
-        img = img.view(img.size(0), 3, self.image_size, self.image_size)
+        out = self.l1(z)
+        out = out.view(out.shape[0], 128, self.init_size, self.init_size)
+        img = self.conv_blocks(out)
         return img
 
 if __name__ == '__main__':

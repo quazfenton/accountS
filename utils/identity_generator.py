@@ -1,12 +1,16 @@
 import random
 import string
 import itertools
+import json
+import os
 from collections import defaultdict
+from pathlib import Path
 import faker # Import faker here for seeding
 
 class IdentityGenerator:
     def __init__(self):
         self.word_list = self.load_word_list()
+        self.name_data = self.load_name_data()
         self.used_combinations = set()
         self.traversal_path = []
         self.fake = faker.Faker() # Initialize Faker here
@@ -16,9 +20,32 @@ class IdentityGenerator:
         random.seed(seed)
         faker.Faker.seed(seed)
         
+    def load_name_data(self):
+        """Load realistic name data from JSON file"""
+        try:
+            data_path = Path(__file__).parent.parent / "data" / "common_names.json"
+            with open(data_path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load name data: {e}")
+            # Fallback to basic data
+            return {
+                "first_names": {
+                    "male": ["John", "James", "Robert", "Michael", "David"],
+                    "female": ["Mary", "Patricia", "Jennifer", "Linda", "Elizabeth"]
+                },
+                "last_names": ["Smith", "Johnson", "Williams", "Brown", "Jones"],
+                "username_words": ["alpha", "beta", "gamma", "delta", "epsilon"],
+                "adjectives": ["swift", "mighty", "brave", "clever", "wise"]
+            }
+    
     def load_word_list(self):
         """Load a comprehensive word list for username generation"""
-        # In a real implementation, this would load from a file/API
+        # Load from name data if available
+        if hasattr(self, 'name_data') and self.name_data:
+            return self.name_data.get('username_words', [])
+        
+        # Fallback to hardcoded list
         return [
             'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 
             'theta', 'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi',
@@ -28,46 +55,145 @@ class IdentityGenerator:
             'echo', 'blaze', 'spark', 'glide', 'pulse', 'orbit', 'flux'
         ]
     
-    def generate_username(self, min_length=8, num_count=2):
-        """Generate username from word combinations with numbers and more realistic transformations."""
+    def generate_realistic_name(self):
+        """Generate a realistic first and last name"""
+        gender = random.choice(['male', 'female'])
+        first_name = random.choice(self.name_data['first_names'][gender])
+        last_name = random.choice(self.name_data['last_names'])
+        return first_name, last_name, gender
+    
+    def generate_username(self, min_length=8, num_count=2, style='mixed'):
+        """Generate username with various realistic styles"""
         while True:
-            word_count = random.randint(1, 2) # Use 1-2 words for more common usernames
-            words = random.sample(self.word_list, word_count)
-            
-            base = ''.join(words).lower()
-            
-            transformations = [
-                lambda s: s, # No change
-                lambda s: s.capitalize(), # Capitalize first letter
-                lambda s: ''.join(w.capitalize() for w in words), # PascalCase
-                lambda s: s.replace('a', '4').replace('e', '3').replace('i', '1').replace('o', '0').replace('s', '5'), # Leetspeak
-                lambda s: f"{s}{random.choice(['_', '-'])}", # Add separator
-                lambda s: f"{s}{self.fake.random_int(min=1, max=99)}" # Add small number suffix
-            ]
-            
-            username = random.choice(transformations)(base)
-            
-            # Ensure numbers are added if num_count > 0
-            if num_count > 0:
-                numbers = ''.join(random.choices(string.digits, k=num_count))
-                insert_pattern = random.choice([
-                    lambda u, n: u + n,          # Suffix numbers (most common)
-                    lambda u, n: u[:len(u)//2] + n + u[len(u)//2:],  # Middle insertion
+            if style == 'name_based':
+                username = self._generate_name_based_username()
+            elif style == 'word_based':
+                username = self._generate_word_based_username()
+            elif style == 'mixed':
+                username = random.choice([
+                    self._generate_name_based_username(),
+                    self._generate_word_based_username()
                 ])
-                username = insert_pattern(username, numbers)
+            else:
+                username = self._generate_word_based_username()
+            
+            # Apply common transformations
+            username = self._apply_username_transformations(username, num_count)
             
             # Ensure minimum length
             if len(username) < min_length:
                 padding = ''.join(random.choices(string.ascii_lowercase, k=min_length-len(username)))
                 username += padding
             
-            # Remove spaces or special characters introduced by transformations if any
-            username = ''.join(filter(str.isalnum, username))
-
-            if username not in self.used_combinations:
+            # Clean up and validate
+            username = ''.join(c for c in username if c.isalnum() or c in '_-.')
+            username = username[:20]  # Limit length for practicality
+            
+            if username and username not in self.used_combinations:
                 self.used_combinations.add(username)
                 self.traversal_path.append(username)
                 return username
+    
+    def _generate_name_based_username(self):
+        """Generate username based on realistic names"""
+        first_name, last_name, _ = self.generate_realistic_name()
+        
+        patterns = [
+            lambda f, l: f.lower() + l.lower(),
+            lambda f, l: f.lower() + '_' + l.lower(),
+            lambda f, l: f.lower() + '.' + l.lower(),
+            lambda f, l: f[0].lower() + l.lower(),
+            lambda f, l: f.lower() + l[0].lower(),
+            lambda f, l: f.lower()[:3] + l.lower()[:3],
+            lambda f, l: l.lower() + f[0].lower(),
+            lambda f, l: f.lower() + l.lower()[:3]
+        ]
+        
+        pattern = random.choice(patterns)
+        return pattern(first_name, last_name)
+    
+    def _generate_word_based_username(self):
+        """Generate username based on words and adjectives"""
+        word_count = random.randint(1, 2)
+        
+        if word_count == 1:
+            # Single word with possible adjective
+            if random.random() < 0.4:  # 40% chance of adjective
+                adjective = random.choice(self.name_data.get('adjectives', ['cool']))
+                word = random.choice(self.word_list)
+                base = adjective + word
+            else:
+                base = random.choice(self.word_list)
+        else:
+            # Two words
+            words = random.sample(self.word_list, 2)
+            base = ''.join(words)
+        
+        return base.lower()
+    
+    def _apply_username_transformations(self, username, num_count):
+        """Apply various transformations to make username more realistic"""
+        transformations = [
+            lambda s: s,  # No change
+            lambda s: s.capitalize(),  # Capitalize first letter
+            lambda s: self._apply_leetspeak(s),  # Leetspeak
+            lambda s: s + random.choice(['_', '-', '.']),  # Add separator
+        ]
+        
+        # Apply random transformation
+        username = random.choice(transformations)(username)
+        
+        # Add numbers if requested
+        if num_count > 0:
+            numbers = self._generate_realistic_numbers(num_count)
+            insert_patterns = [
+                lambda u, n: u + n,  # Suffix (most common)
+                lambda u, n: n + u,  # Prefix
+                lambda u, n: u + '_' + n,  # Underscore separator
+                lambda u, n: u + '.' + n,  # Dot separator
+            ]
+            
+            pattern = random.choice(insert_patterns)
+            username = pattern(username, numbers)
+        
+        return username
+    
+    def _apply_leetspeak(self, text):
+        """Apply leetspeak transformations selectively"""
+        leet_map = {
+            'a': '4', 'e': '3', 'i': '1', 'o': '0', 's': '5',
+            'A': '4', 'E': '3', 'I': '1', 'O': '0', 'S': '5'
+        }
+        
+        # Only apply to some characters to keep it readable
+        result = ""
+        for char in text:
+            if char in leet_map and random.random() < 0.3:  # 30% chance
+                result += leet_map[char]
+            else:
+                result += char
+        
+        return result
+    
+    def _generate_realistic_numbers(self, count):
+        """Generate realistic number patterns"""
+        patterns = [
+            lambda c: ''.join(random.choices(string.digits, k=c)),  # Random digits
+            lambda c: str(random.randint(1980, 2005)),  # Birth year range
+            lambda c: str(random.randint(1, 99)),  # Small numbers
+            lambda c: str(random.randint(100, 999)),  # Medium numbers
+        ]
+        
+        if count <= 2:
+            return str(random.randint(1, 99))
+        elif count <= 4:
+            return random.choice([
+                str(random.randint(1980, 2005)),  # Year
+                str(random.randint(1000, 9999)),  # 4-digit number
+                ''.join(random.choices(string.digits, k=count))
+            ])
+        else:
+            return ''.join(random.choices(string.digits, k=count))
     
     def generate_password(self, length=12):
         """Generate strong password with required character types using advanced techniques."""
@@ -114,13 +240,30 @@ class IdentityGenerator:
             return self.generate_password(length)
     
     def generate_identity(self):
-        """Generate consistent identity profile"""
+        """Generate consistent identity profile with realistic names"""
+        # Generate realistic name first
+        first_name, last_name, gender = self.generate_realistic_name()
+        
+        # Generate username that might be based on the name
+        username = self.generate_username(style='mixed')
+        
+        # Generate email with realistic domain
+        email_domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com']
+        email_username = random.choice([
+            username,
+            self._generate_name_based_username(),
+            first_name.lower() + last_name.lower()[:3],
+            first_name.lower() + str(random.randint(1, 999))
+        ])
+        email = f"{email_username}@{random.choice(email_domains)}"
+        
         identity = {
-            'username': self.generate_username(),
+            'username': username,
             'password': self.generate_password(),
-            'email': f"{self.generate_username()}@{self.fake.free_email_domain()}", # Use faker for email domain
-            'first_name': self.fake.first_name(), # Use faker for more diverse names
-            'last_name': self.fake.last_name() # Use faker for more diverse names
+            'email': email,
+            'first_name': first_name,
+            'last_name': last_name,
+            'gender': gender
         }
         return identity
     

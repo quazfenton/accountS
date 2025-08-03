@@ -1,0 +1,58 @@
+{
+  "first_names": {
+    "male": [
+      "James", "Robert", "John", "Michael", "David", "William", "Richard", "Joseph", "Thomas", "Christopher",
+      "Charles", "Daniel", "Matthew", "Anthony", "Mark", "Donald", "Steven", "Paul", "Andrew", "Joshua",
+      "Kenneth", "Kevin", "Brian", "George", "Timothy", "Ronald", "Jason", "Edward", "Jeffrey", "Ryan",
+      "Jacob", "Gary", "Nicholas", "Eric", "Jonathan", "Stephen", "Larry", "Justin", "Scott", "Brandon",
+      "Benjamin", "Samuel", "Gregory", "Alexander", "Patrick", "Frank", "Raymond", "Jack", "Dennis", "Jerry",
+      "Tyler", "Aaron", "Jose", "Henry", "Adam", "Douglas", "Nathan", "Peter", "Zachary", "Kyle",
+      "Noah", "Alan", "Ethan", "Jeremy", "Lionel", "Angel", "Wayne", "Arthur", "Sean", "Carl",
+      "Harold", "Ralph", "Jordan", "Eugene", "Louis", "Philip", "Bobby", "Mason", "Roy", "Eugene"
+    ],
+    "female": [
+      "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen",
+      "Nancy", "Lisa", "Betty", "Helen", "Sandra", "Donna", "Carol", "Ruth", "Sharon", "Michelle",
+      "Laura", "Sarah", "Kimberly", "Deborah", "Dorothy", "Lisa", "Nancy", "Karen", "Betty", "Helen",
+      "Sandra", "Donna", "Carol", "Ruth", "Sharon", "Michelle", "Laura", "Sarah", "Kimberly", "Deborah",
+      "Amy", "Angela", "Ashley", "Brenda", "Emma", "Olivia", "Cynthia", "Marie", "Janet", "Catherine",
+      "Frances", "Christine", "Samantha", "Debra", "Rachel", "Carolyn", "Janet", "Virginia", "Maria", "Heather",
+      "Diane", "Julie", "Joyce", "Victoria", "Kelly", "Christina", "Joan", "Evelyn", "Lauren", "Judith",
+      "Megan", "Cheryl", "Andrea", "Hannah", "Jacqueline", "Martha", "Gloria", "Teresa", "Sara", "Janice"
+    ]
+  },
+  "last_names": [
+    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+    "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+    "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+    "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores",
+    "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts",
+    "Gomez", "Phillips", "Evans", "Turner", "Diaz", "Parker", "Cruz", "Edwards", "Collins", "Reyes",
+    "Stewart", "Morris", "Morales", "Murphy", "Cook", "Rogers", "Gutierrez", "Ortiz", "Morgan", "Cooper",
+    "Peterson", "Bailey", "Reed", "Kelly", "Howard", "Ramos", "Kim", "Cox", "Ward", "Richardson",
+    "Watson", "Brooks", "Chavez", "Wood", "James", "Bennett", "Gray", "Mendoza", "Ruiz", "Hughes",
+    "Price", "Alvarez", "Castillo", "Sanders", "Patel", "Myers", "Long", "Ross", "Foster", "Jimenez"
+  ],
+  "username_words": [
+    "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
+    "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon",
+    "phi", "chi", "psi", "omega", "nexus", "matrix", "cyber", "synth", "quantum", "digital",
+    "fusion", "vortex", "zenith", "nova", "echo", "blaze", "spark", "glide", "pulse", "orbit",
+    "flux", "storm", "shadow", "phoenix", "dragon", "wolf", "eagle", "tiger", "lion", "bear",
+    "hawk", "raven", "falcon", "panther", "cobra", "viper", "shark", "whale", "dolphin", "octopus",
+    "fire", "ice", "wind", "earth", "water", "light", "dark", "moon", "sun", "star",
+    "cosmic", "stellar", "lunar", "solar", "galactic", "nebula", "comet", "meteor", "asteroid", "planet",
+    "crystal", "diamond", "ruby", "emerald", "sapphire", "gold", "silver", "platinum", "titanium", "steel",
+    "thunder", "lightning", "tornado", "hurricane", "blizzard", "avalanche", "earthquake", "tsunami", "volcano", "geyser"
+  ],
+  "adjectives": [
+    "swift", "mighty", "brave", "clever", "wise", "strong", "quick", "silent", "fierce", "bold",
+    "bright", "dark", "light", "heavy", "fast", "slow", "big", "small", "tall", "short",
+    "wide", "narrow", "deep", "shallow", "hot", "cold", "warm", "cool", "dry", "wet",
+    "smooth", "rough", "soft", "hard", "sharp", "dull", "clean", "dirty", "fresh", "old",
+    "new", "young", "ancient", "modern", "classic", "vintage", "rare", "common", "unique", "special",
+    "magic", "mystic", "cosmic", "stellar", "lunar", "solar", "electric", "magnetic", "atomic", "quantum",
+    "cyber", "digital", "virtual", "neural", "bio", "nano", "micro", "macro", "ultra", "super",
+    "hyper", "mega", "giga", "tera", "infinite", "eternal", "immortal", "legendary", "epic", "heroic"
+  ]
+}
