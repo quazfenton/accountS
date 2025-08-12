@@ -263,7 +263,8 @@ class IdentityGenerator:
             'email': email,
             'first_name': first_name,
             'last_name': last_name,
-            'gender': gender
+            'gender': gender,
+            'province': self.fake.state()
         }
         return identity
     

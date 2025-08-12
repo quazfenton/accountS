@@ -56,7 +56,7 @@ class ProfileManager:
             return {
                 'street': self.fake.street_address(),
                 'city': self.fake.city(),
-                'state': self.fake.state() if country_code == 'US' else self.fake.province(),
+                'state': self.fake.state() if country_code == 'US' else self.fake.state(),
                 'zip_code': self.fake.zipcode(),
                 'country': country_code
             }
