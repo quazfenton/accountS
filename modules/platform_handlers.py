@@ -2,13 +2,15 @@ import asyncio
 import random
 import time
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 
 from utils.stealth_browser import StealthBrowserAutomation
 from modules.advanced_verification_solver import AdvancedVerificationSolver, VerificationContext, VerificationType
+from config.config import Config
+from config.config import Config
 
 @dataclass
 class PlatformConfig:
@@ -20,9 +22,9 @@ class PlatformConfig:
     error_indicators: List[str]
     verification_types: List[VerificationType]
     rate_limit_delay: Tuple[int, int]  # min, max seconds
-    requires_phone: bool = False
-    requires_email_verification: bool = True
-    profile_requirements: Dict[str, Any] = None
+    requires_phone: Optional[bool] = False
+    requires_email_verification: Optional[bool] = True
+    profile_requirements: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):
         if self.profile_requirements is None:
@@ -31,11 +33,13 @@ class PlatformConfig:
 class BasePlatformHandler(ABC):
     """Base class for platform-specific registration handlers"""
     
-    def __init__(self, config: PlatformConfig):
-        self.config = config
-        self.logger = logging.getLogger(f"{__name__}.{config.name}")
+    def __init__(self, platform_name: str, config_manager: Config):
+        self.config_manager = config_manager
+        self.config = self.config_manager.get_platform_config(platform_name)
+        self.logger = logging.getLogger(f"{__name__}.{platform_name}")
         self.browser_automation = StealthBrowserAutomation()
         self.verification_solver = AdvancedVerificationSolver()
+        self.rate_limiter = IntelligentRateLimiter(platform_name)
         
         # Platform-specific statistics
         self.stats = {
@@ -341,41 +345,10 @@ class BasePlatformHandler(ABC):
 class TwitterHandler(BasePlatformHandler):
     """Twitter-specific registration handler"""
     
-    def __init__(self):
-        config = PlatformConfig(
-            name='twitter',
-            signup_url='https://twitter.com/i/flow/signup',
-            selectors={
-                'email': 'input[name="email"]',
-                'name': 'input[name="name"]',
-                'phone': 'input[name="phone_number"]',
-                'next': 'div[role="button"]:has-text("Next")',
-                'submit': 'div[role="button"]:has-text("Sign up")',
-                'code_input': 'input[name="verfication_code"]'
-            },
-            success_indicators=[
-                'text=What are you interested in?',
-                'text=Follow some accounts',
-                'text=Welcome to Twitter'
-            ],
-            error_indicators=[
-                'text=Something went wrong',
-                'text=Try again',
-                'text=Email has already been taken'
-            ],
-            verification_types=[
-                VerificationType.SMS,
-                VerificationType.EMAIL,
-                VerificationType.RECAPTCHA
-            ],
-            rate_limit_delay=(300, 900),  # 5-15 minutes
-            requires_phone=True,
-            profile_requirements={
-                'bio_length': 160,
-                'username_style': 'short'
-            }
-        )
-        super().__init__(config)
+    def __init__(self, config_manager: Config):
+        super().__init__('twitter', config_manager)
+        # Fix typo in Twitter handler's verification code input selector
+        self.config.selectors['code_input'] = 'input[name="verification_code"]'
     
     async def register_account(self, identity: Dict[str, Any], 
                              profile: Dict[str, Any]) -> Dict[str, Any]:
@@ -383,6 +356,9 @@ class TwitterHandler(BasePlatformHandler):
         start_time = time.time()
         
         try:
+            # Rate limit
+            await self.rate_limiter.wait_for_next_request(last_success=False)
+            
             # Create browser context
             context, browser, playwright = await self.browser_automation.create_stealth_context()
             page = await context.new_page()
@@ -423,6 +399,7 @@ class TwitterHandler(BasePlatformHandler):
                 
                 duration = time.time() - start_time
                 self._update_stats(result['success'], duration, result.get('error'))
+                await self.rate_limiter.wait_for_next_request(last_success=result['success'])
                 
                 return {
                     **result,
@@ -440,6 +417,7 @@ class TwitterHandler(BasePlatformHandler):
         except Exception as e:
             duration = time.time() - start_time
             self._update_stats(False, duration, str(e))
+            await self.rate_limiter.wait_for_next_request(last_success=False)
             
             return {
                 'success': False,
@@ -451,44 +429,8 @@ class TwitterHandler(BasePlatformHandler):
 class FacebookHandler(BasePlatformHandler):
     """Facebook-specific registration handler"""
     
-    def __init__(self):
-        config = PlatformConfig(
-            name='facebook',
-            signup_url='https://www.facebook.com/reg/',
-            selectors={
-                'first_name': 'input[name="firstname"]',
-                'last_name': 'input[name="lastname"]',
-                'email': 'input[name="reg_email__"]',
-                'password': 'input[name="reg_passwd__"]',
-                'birthday_day': 'select[name="birthday_day"]',
-                'birthday_month': 'select[name="birthday_month"]',
-                'birthday_year': 'select[name="birthday_year"]',
-                'gender': 'input[name="sex"]',
-                'submit': 'button[name="websubmit"]'
-            },
-            success_indicators=[
-                'text=Find friends',
-                'text=Welcome to Facebook',
-                'text=Add a profile picture'
-            ],
-            error_indicators=[
-                'text=This email is already in use',
-                'text=Please enter a valid email',
-                'text=Something went wrong'
-            ],
-            verification_types=[
-                VerificationType.CAPTCHA_IMAGE,
-                VerificationType.SMS,
-                VerificationType.EMAIL
-            ],
-            rate_limit_delay=(600, 1800),  # 10-30 minutes
-            requires_phone=False,
-            profile_requirements={
-                'bio_length': 101,
-                'username_style': 'real_name'
-            }
-        )
-        super().__init__(config)
+    def __init__(self, config_manager: Config):
+        super().__init__('facebook', config_manager)
     
     async def register_account(self, identity: Dict[str, Any], 
                              profile: Dict[str, Any]) -> Dict[str, Any]:
@@ -496,6 +438,9 @@ class FacebookHandler(BasePlatformHandler):
         start_time = time.time()
         
         try:
+            # Rate limit
+            await self.rate_limiter.wait_for_next_request(last_success=False)
+            
             context, browser, playwright = await self.browser_automation.create_stealth_context()
             page = await context.new_page()
             
@@ -544,6 +489,7 @@ class FacebookHandler(BasePlatformHandler):
                 
                 duration = time.time() - start_time
                 self._update_stats(result['success'], duration, result.get('error'))
+                await self.rate_limiter.wait_for_next_request(last_success=result['success'])
                 
                 return {
                     **result,
@@ -561,6 +507,7 @@ class FacebookHandler(BasePlatformHandler):
         except Exception as e:
             duration = time.time() - start_time
             self._update_stats(False, duration, str(e))
+            await self.rate_limiter.wait_for_next_request(last_success=False)
             
             return {
                 'success': False,
@@ -572,40 +519,8 @@ class FacebookHandler(BasePlatformHandler):
 class InstagramHandler(BasePlatformHandler):
     """Instagram-specific registration handler"""
     
-    def __init__(self):
-        config = PlatformConfig(
-            name='instagram',
-            signup_url='https://www.instagram.com/accounts/emailsignup/',
-            selectors={
-                'email': 'input[name="emailOrPhone"]',
-                'full_name': 'input[name="fullName"]',
-                'username': 'input[name="username"]',
-                'password': 'input[name="password"]',
-                'submit': 'button[type="submit"]'
-            },
-            success_indicators=[
-                'text=Find people to follow',
-                'text=Welcome to Instagram',
-                'text=Add a profile photo'
-            ],
-            error_indicators=[
-                'text=This username isn\'t available',
-                'text=Another account is using the same email',
-                'text=Something went wrong'
-            ],
-            verification_types=[
-                VerificationType.CAPTCHA_IMAGE,
-                VerificationType.SMS,
-                VerificationType.EMAIL
-            ],
-            rate_limit_delay=(300, 1200),  # 5-20 minutes
-            requires_phone=False,
-            profile_requirements={
-                'bio_length': 150,
-                'username_style': 'creative'
-            }
-        )
-        super().__init__(config)
+    def __init__(self, config_manager: Config):
+        super().__init__('instagram', config_manager)
     
     async def register_account(self, identity: Dict[str, Any], 
                              profile: Dict[str, Any]) -> Dict[str, Any]:
@@ -613,6 +528,9 @@ class InstagramHandler(BasePlatformHandler):
         start_time = time.time()
         
         try:
+            # Rate limit
+            await self.rate_limiter.wait_for_next_request(last_success=False)
+            
             context, browser, playwright = await self.browser_automation.create_stealth_context()
             page = await context.new_page()
             
@@ -660,6 +578,7 @@ class InstagramHandler(BasePlatformHandler):
                 
                 duration = time.time() - start_time
                 self._update_stats(result['success'], duration, result.get('error'))
+                await self.rate_limiter.wait_for_next_request(last_success=result['success'])
                 
                 return {
                     **result,
@@ -677,6 +596,7 @@ class InstagramHandler(BasePlatformHandler):
         except Exception as e:
             duration = time.time() - start_time
             self._update_stats(False, duration, str(e))
+            await self.rate_limiter.wait_for_next_request(last_success=False)
             
             return {
                 'success': False,
@@ -696,12 +616,12 @@ class PlatformHandlerFactory:
     }
     
     @classmethod
-    def create_handler(cls, platform: str) -> BasePlatformHandler:
+    def create_handler(cls, platform: str, config_manager: Config) -> BasePlatformHandler:
         """Create a handler for the specified platform"""
         if platform not in cls._handlers:
             raise ValueError(f"Unsupported platform: {platform}")
         
-        return cls._handlers[platform]()
+        return cls._handlers[platform](config_manager)
     
     @classmethod
     def get_supported_platforms(cls) -> List[str]:
@@ -712,3 +632,46 @@ class PlatformHandlerFactory:
     def register_handler(cls, platform: str, handler_class):
         """Register a new platform handler"""
         cls._handlers[platform] = handler_class
+
+class IntelligentRateLimiter:
+    """Intelligent rate limiting based on success rates and platform responses"""
+    
+    def __init__(self, platform_name: str):
+        self.platform_name = platform_name
+        self.request_times = []
+        self.success_history = []
+        self.current_delay = 5  # Start with 5 second delay
+        
+    async def wait_for_next_request(self, last_success: bool):
+        """Wait appropriate time before next request"""
+        now = time.time()
+        
+        # Clean old request times (keep last hour)
+        self.request_times = [t for t in self.request_times if now - t < 3600]
+        self.success_history = self.success_history[-20:]  # Keep last 20 attempts
+        
+        # Add current attempt
+        self.request_times.append(now)
+        self.success_history.append(last_success)
+        
+        # Calculate recent success rate
+        if len(self.success_history) >= 5:
+            recent_success_rate = sum(self.success_history[-5:]) / 5
+            
+            if recent_success_rate < 0.4:
+                # Low success rate - increase delay
+                self.current_delay = min(self.current_delay * 1.5, 60)
+            elif recent_success_rate > 0.8:
+                # High success rate - decrease delay
+                self.current_delay = max(self.current_delay * 0.8, 3)
+        
+        # Check if we're hitting rate limits
+        requests_last_minute = len([t for t in self.request_times if now - t < 60])
+        if requests_last_minute > 10:  # More than 10 requests per minute
+            self.current_delay = max(self.current_delay * 2, 30)
+        
+        # Add randomization
+        actual_delay = self.current_delay + random.uniform(-1, 3)
+        
+        self.logger.info(f"Rate limiting: waiting {actual_delay:.1f}s (success rate: {recent_success_rate:.2%})")
+        await asyncio.sleep(actual_delay)

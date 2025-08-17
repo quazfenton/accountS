@@ -1,0 +1,56 @@
+{
+  "platforms": {
+    "twitter": {
+      "url": "https://twitter.com",
+      "registration_path": "/i/flow/signup",
+      "username_field": "input[name=\"email\"]",
+      "password_field": "",
+      "submit_button": "div[role=\"button\"]:has-text(\"Sign up\")",
+      "success_selector": "text=What are you interested in?",
+      "failure_selector": "text=Something went wrong"
+    },
+    "facebook": {
+      "url": "https://www.facebook.com",
+      "registration_path": "/reg/",
+      "username_field": "input[name=\"reg_email__\"]",
+      "password_field": "input[name=\"reg_passwd__\"]",
+      "submit_button": "button[name=\"websubmit\"]",
+      "success_selector": "text=Find friends",
+      "failure_selector": "text=This email is already in use"
+    },
+    "instagram": {
+      "url": "https://www.instagram.com",
+      "registration_path": "/accounts/emailsignup/",
+      "username_field": "input[name=\"emailOrPhone\"]",
+      "password_field": "input[name=\"password\"]",
+      "submit_button": "button[type=\"submit\"]",
+      "success_selector": "text=Find people to follow",
+      "failure_selector": "text=This username isn't available"
+    }
+  },
+  "verification": {
+    "captcha_services": [
+      {
+        "name": "2captcha",
+        "api_key": "",
+        "endpoint": "http://2captcha.com/in.php",
+        "timeout": 120,
+        "max_retries": 3
+      }
+    ],
+    "max_captcha_attempts": 3,
+    "sms_timeout": 300,
+    "email_verification_timeout": 600,
+    "human_intervention_threshold": 3
+  },
+  "proxy": {
+    "enabled": false,
+    "proxy_list": []
+  },
+  "monitoring": {
+    "success_rate_threshold": 0.7,
+    "failure_alert_count": 5,
+    "log_level": "INFO",
+    "metrics_collection": true
+  }
+}

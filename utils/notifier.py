@@ -3,6 +3,13 @@ import platform
 import subprocess
 from datetime import datetime
 
+# Cross-platform notification support
+try:
+    from plyer import notification
+    PLYER_AVAILABLE = True
+except ImportError:
+    PLYER_AVAILABLE = False
+
 class Notifier:
     def __init__(self):
         self.system = platform.system()
@@ -22,7 +29,15 @@ class Notifier:
             
         # Send system notification
         try:
-            if self.system == "Darwin":  # macOS
+            # Try plyer first (cross-platform)
+            if PLYER_AVAILABLE:
+                notification.notify(
+                    title="Bot Alert",
+                    message=message,
+                    timeout=5
+                )
+            # Fallback to system-specific methods
+            elif self.system == "Darwin":  # macOS
                 subprocess.run(['osascript', '-e', f'display notification "{message}" with title "Bot Alert"'], 
                              check=False, timeout=10)
             elif self.system == "Linux":
@@ -35,6 +50,8 @@ class Notifier:
                     toaster.show_toast("Bot Alert", message, duration=5)
                 except ImportError:
                     print(f"Bot Alert: {message}")
+            else:
+                print(f"Bot Alert: {message}")
         except Exception as e:
             print(f"Failed to send notification: {e}")
             print(f"Bot Alert: {message}")

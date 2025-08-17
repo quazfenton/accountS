@@ -8,4 +8,7 @@ python-dateutil
 torch
 torchvision
 pillow
-win10toast
+plyer
+psutil
+aiofiles
+asyncio-throttle

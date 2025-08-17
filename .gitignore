@@ -1,0 +1,95 @@
+# Node.js
+node_modules/
+**/node_modules/
+
+# General
+# Ignore compiled files
+*.o
+*.class
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore IDE and editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore OS-generated files
+.DS_Store
+Thumbs.db
+
+# Ignore build outputs
+dist/
+build/
+out/
+
+#pylib
+bin/
+lib/
+lib64/
+
+# Ignore logs
+*.log
+logs/
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+
+# Ignore dependency lock files (optional, depending on project needs)
+# package-lock.json
+# yarn.lock
+
+# Ignore temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Ignore environment-specific files
+.env
+.env.local
+.env.*.local
+
+# Ignore coverage reports
+coverage/
+*.lcov
+
+# Ignore Python virtual environments
+venv/
+.env/
+virtualenv/
+.venv/
+
+# Ignore Java build tools
+target/
+.gradle/
+build.gradle
+
+# Ignore Docker-related files
+Dockerfile
+docker-compose.yml
+*.dockerignore
+
+# Ignore package manager caches
+.pnpm-store/
+.nvm/
+.rbenv/
+.rvm/
+
+# Ignore sensitive or local configuration files
+config.json
+secrets.json
+*.key
+*.pem
+*.crt
+*.cert
+
+# Ignore test artifacts
+test-results/
+junit.xml
+
+# Ignore documentation build outputs
+docs/_build/
+_site/

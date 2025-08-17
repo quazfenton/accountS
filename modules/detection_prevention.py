@@ -1,4 +1,5 @@
 import random
+import json
 from playwright.sync_api import BrowserContext
 
 class DetectionPrevention:
@@ -33,6 +34,55 @@ class DetectionPrevention:
         platform = random.choice(["windows", "mac"])
         user_agent = random.choice(user_agents[platform])
         self.context.set_extra_http_headers({"User-Agent": user_agent})
+        
+        # Spoof additional navigator properties
+        navigator_props = {
+            "windows": {
+                "platform": "Win32",
+                "cpuClass": "x86",
+                "oscpu": "Windows NT 10.0; Win64; x64",
+                "vendor": "Google Inc.",
+                "vendorSub": "",
+                "productSub": "20030107"
+            },
+            "mac": {
+                "platform": "MacIntel",
+                "cpuClass": None,
+                "oscpu": None,
+                "vendor": "Apple Computer, Inc.",
+                "vendorSub": "",
+                "productSub": "20030107"
+            }
+        }
+        nav_props = navigator_props[platform]
+        
+        # Add navigator property spoofing
+        nav_script = f"""
+            // Spoof additional navigator properties
+            Object.defineProperty(navigator, 'platform', {{get: () => '{nav_props['platform']}'}}});
+            """
+        
+        if nav_props['cpuClass'] is not None:
+            nav_script += f"Object.defineProperty(navigator, 'cpuClass', {{get: () => '{nav_props['cpuClass']}'}}});"
+        else:
+            nav_script += "delete navigator.cpuClass;"
+        
+        if nav_props['oscpu'] is not None:
+            nav_script += f"Object.defineProperty(navigator, 'oscpu', {{get: () => '{nav_props['oscpu']}'}}});"
+        else:
+            nav_script += "delete navigator.oscpu;"
+        
+        nav_script += f"""
+            Object.defineProperty(navigator, 'vendor', {{get: () => '{nav_props['vendor']}'}}});
+            Object.defineProperty(navigator, 'vendorSub', {{get: () => '{nav_props['vendorSub']}'}}});
+            Object.defineProperty(navigator, 'productSub', {{get: () => '{nav_props['productSub']}'}}});
+            
+            // Add webdriver property removal
+            delete navigator.webdriver;
+            delete navigator.__proto__.webdriver;
+        """
+        
+        self.context.add_init_script(nav_script)
         
         # Spoof webgl fingerprint with vendor-specific values
         webgl_vendors = {
@@ -180,6 +230,58 @@ class DetectionPrevention:
                 return originalQuery.call(this, font);
             };
         """)
+        
+        # Enhanced screen properties spoofing
+        screen_script = """
+            // Spoof screen dimensions
+            Object.defineProperty(window.screen, 'width', { get: () => %d });
+            Object.defineProperty(window.screen, 'height', { get: () => %d });
+            Object.defineProperty(window.screen, 'availWidth', { get: () => %d });
+            Object.defineProperty(window.screen, 'availHeight', { get: () => %d });
+            Object.defineProperty(window.screen, 'colorDepth', { get: () => 24 });
+            Object.defineProperty(window.screen, 'pixelDepth', { get: () => 24 });
+        """ % (viewport["width"], viewport["height"], viewport["width"], viewport["height"] - 100)  # 100px for browser UI
+        
+        self.context.add_init_script(screen_script)
+        
+        # Spoof timezone and locale
+        timezones = {
+            'en-US': ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles'],
+            'en-GB': ['Europe/London'],
+            'en-CA': ['America/Toronto', 'America/Vancouver']
+        }
+        
+        locale = random.choice(['en-US', 'en-GB', 'en-CA'])
+        timezone = random.choice(timezones[locale])
+        
+        timezone_script = f"""
+            // Spoof timezone
+            Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {{
+                value: function() {{
+                    return {{
+                        ...this.__proto__.resolvedOptions.call(this),
+                        timeZone: '{timezone}',
+                        locale: '{locale}'
+                    }};
+                }}
+            }});
+        """
+        
+        self.context.add_init_script(timezone_script)
+        
+        # Spoof device memory
+        memory_values = [2, 4, 8]  # GB values
+        memory = random.choice(memory_values)
+        
+        memory_script = f"""
+            // Spoof device memory
+            Object.defineProperty(navigator, 'deviceMemory', {{
+                get: () => {memory},
+                configurable: false
+            }});
+        """
+        
+        self.context.add_init_script(memory_script)
     
     def rotate_fingerprint(self):
         """Rotate browser fingerprint with new properties"""
