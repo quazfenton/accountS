@@ -314,11 +314,6 @@ black . && isort .
 
 ## ⚠️ Important Notes
 
-### Legal Compliance
-- **Terms of Service**: Ensure compliance with platform ToS
-- **Rate Limits**: Respect platform rate limiting policies
-- **Data Privacy**: Handle user data according to privacy laws
-- **Jurisdiction**: Comply with local laws and regulations
 
 ### Responsible Usage
 - **Educational Purpose**: System designed for learning and research
