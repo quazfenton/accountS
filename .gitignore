@@ -30,6 +30,8 @@ bin/
 lib/
 lib64/
 
+utils/__pycache__/
+
 # Ignore logs
 *.log
 logs/
