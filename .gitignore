@@ -93,3 +93,6 @@ junit.xml
 # Ignore documentation build outputs
 docs/_build/
 _site/
+
+.env*
+node_modules*
