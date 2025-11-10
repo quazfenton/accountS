@@ -100,12 +100,11 @@ class ImprovedDatabase:
         """Initialize SQLite database with comprehensive schema"""
         try:
             with self.get_connection() as conn:
-                # Main accounts table
+                # Main accounts table - remove plaintext password field
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS accounts (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         email TEXT UNIQUE NOT NULL,
-                        password TEXT NOT NULL,
                         platform TEXT NOT NULL,
                         username TEXT,
                         proxy_used TEXT,
@@ -117,7 +116,7 @@ class ImprovedDatabase:
                         verification_status TEXT DEFAULT 'unverified',
                         ecosystem_id TEXT,
                         linked_accounts TEXT,
-                        password_hash TEXT,
+                        password_hash TEXT NOT NULL,
                         recovery_info TEXT,
                         notes TEXT
                     )
@@ -241,23 +240,22 @@ class ImprovedDatabase:
         """Save account with comprehensive data validation and error handling"""
         try:
             # Validate required fields
-            required_fields = ['email', 'password', 'platform']
+            required_fields = ['email', 'password', 'platform']  # We still need the password to hash it
             for field in required_fields:
                 if field not in account_data or not account_data[field]:
                     raise ValueError(f"Missing required field: {field}")
             
-            # Create password hash for security
+            # Create password hash for security - do not store plaintext
             password_hash = hashlib.sha256(account_data['password'].encode()).hexdigest()
             
             with self.get_connection() as conn:
                 conn.execute('''
                     INSERT OR REPLACE INTO accounts 
-                    (email, password, platform, username, proxy_used, profile_data, 
+                    (email, platform, username, proxy_used, profile_data, 
                      verification_status, ecosystem_id, linked_accounts, password_hash, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     account_data['email'],
-                    account_data['password'],
                     account_data.get('platform', 'unknown'),
                     account_data.get('username', ''),
                     account_data.get('proxy', ''),

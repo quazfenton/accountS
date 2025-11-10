@@ -12,3 +12,22 @@ plyer
 psutil
 aiofiles
 asyncio-throttle
+# Security dependencies
+bcrypt
+cryptography
+# Testing dependencies
+pytest
+pytest-asyncio
+pytest-cov
+mypy
+flake8
+# Monitoring dependencies
+prometheus-client
+opentelemetry-api
+opentelemetry-sdk
+structlog
+# Configuration dependencies
+pydantic
+# OCR dependencies (for captcha solving)
+pytesseract
+opencv-python
